@@ -1,0 +1,118 @@
+{
+	"info": {
+		"_postman_id": "9250702b-5371-4205-b495-c276d9e98cf1",
+		"name": "ApiFoto",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "11694413"
+	},
+	"item": [
+		{
+			"name": "Auth",
+			"item": [
+				{
+					"name": "Login",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"username\" : \"admin\",\r\n    \"password\" : \"admin\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{API}}/auth/login",
+							"host": [
+								"{{API}}"
+							],
+							"path": [
+								"auth",
+								"login"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "RefreshToken",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJVc2VybmFtZSI6ImFkbWluIiwibmJmIjoxNjg3MDI5MzA2LCJleHAiOjE2ODcwMzExMDYsImlhdCI6MTY4NzAyOTMwNn0.28ocj87INBq5vtnPj4d4ZSbHUlZid6HoCASBhK488IM",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"tokenExpired\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJVc2VybmFtZSI6ImFkbWluIiwibmJmIjoxNjg3MDM0NDI5LCJleHAiOjE2ODcwMzQ0ODksImlhdCI6MTY4NzAzNDQyOX0.gsL7e_ERkWKsAyiVbIBU4xu3opAmd3c-wqNwSlaFj34\",\r\n  \"tokenRefresh\": \"RXU97B5VKPPhV+etYwhmFzc8b4geAzu1GGRwxBz05Zik6JUNzfToQgvmfhHlx6dHmdNMhKktKbjVhmER3zhmGg==\",\r\n  \"userId\": 1\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{API}}/auth/refreshtoken",
+							"host": [
+								"{{API}}"
+							],
+							"path": [
+								"auth",
+								"refreshtoken"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "User",
+			"item": [
+				{
+					"name": "GetAll",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJVc2VybmFtZSI6ImFkbWluIiwibmJmIjoxNjg3MDM0NDI5LCJleHAiOjE2ODcwMzQ0ODksImlhdCI6MTY4NzAzNDQyOX0.gsL7e_ERkWKsAyiVbIBU4xu3opAmd3c-wqNwSlaFj34",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{API}}/user/getall",
+							"host": [
+								"{{API}}"
+							],
+							"path": [
+								"user",
+								"getall"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "API",
+			"value": "https://localhost:44306"
+		}
+	]
+}
