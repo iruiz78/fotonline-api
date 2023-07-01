@@ -1,4 +1,5 @@
-﻿using AutoMapper;
+﻿using ApiFoto.Domain.User;
+using AutoMapper;
 
 namespace ApiFoto.Infrastructure.Mapper
 {
@@ -8,7 +9,7 @@ namespace ApiFoto.Infrastructure.Mapper
         {
             var config = new MapperConfiguration(cfg =>
             {
-                
+                cfg.CreateMap<UserRequest, User>().IgnoreAllSourcePropertiesWithAnInaccessibleSetter();
             });
             IMapper mapper = config.CreateMapper();
             services.AddSingleton(mapper);

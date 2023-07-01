@@ -20,5 +20,10 @@ namespace ApiFoto.Controllers
         [HttpGet("GetAll")]
         public async Task<GenericResponse<UserResponse>> GetAll()
             => await _service.GetAll();
+
+        //[Authorize]
+        [HttpPost("Create")]
+        public async Task Create(UserRequest userRequest)
+            => await _service.Create(userRequest);
     }
 }

@@ -6,6 +6,7 @@ namespace ApiFoto.Services.Users
     public interface IUserService
     {
         Task<GenericResponse<UserResponse>> GetAll();
-        Task<UserResponse> GetByUsername(string username);
+        Task<UserResponse> GetByMail(string mail);
+        Task Create(UserRequest userRequest);
     }
 }
