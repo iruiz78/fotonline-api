@@ -1,4 +1,6 @@
-﻿using ApiFoto.Infrastructure.Auth.Domain;
+﻿using ApiFoto.Domain;
+using ApiFoto.Domain.User;
+using ApiFoto.Infrastructure.Auth.Domain;
 using ApiFoto.Infrastructure.Communication;
 using ApiFoto.Repository.Authentication;
 using ApiFoto.Repository.Generic;
@@ -32,14 +34,14 @@ namespace ApiFoto.Services.Authentication
             if (tokenExpired.ValidTo > DateTime.UtcNow)
                 return new GenericResponse<AuthResponse>(400, "Token no expirado", new AuthResponse());
 
-            string username = tokenExpired.Claims.First(x => x.Type == "Username").Value;
+            string mail = tokenExpired.Claims.First(x => x.Type == "Mail").Value;
 
             var refreshTokenFound = await _repository.GetRefreshTokenByUserId(token.UserId, token.TokenExpired, token.TokenRefresh);
             if (refreshTokenFound == null) return new GenericResponse<AuthResponse>(400, "No existe refresh token", new AuthResponse());
 
             AuthResponse authentication = new()
             {
-                Token = GenerateToken(username),
+                Token = GenerateToken(mail),
                 TokenRefresh = GenerateRefreshToken(),
                 ExpiredDate = DateTime.UtcNow.AddMinutes(_jwtSettings.Expire),
             };
@@ -50,32 +52,55 @@ namespace ApiFoto.Services.Authentication
 
         public async Task<GenericResponse<AuthResponse>> Login(AuthRequest auth)
         {
-            // Validar auth
-            AuthResponse authentication = new();
-            var user = await _userService.GetByUsername(auth.Username);
-            if (user is not null)
+            AuthResponse authentication;
+            var user = await _userService.GetByMail(auth.Mail);
+
+            if (user is null) 
             {
-                authentication.UserName = user.Username;
-                authentication.Token = GenerateToken(authentication.UserName);
-                authentication.TokenRefresh = GenerateRefreshToken();
-                authentication.ExpiredDate = DateTime.UtcNow.AddMinutes(_jwtSettings.Expire);
+                switch (auth.Provider)
+                {
+                    case (int)Enums.LoginProvider.OWN:
+                        return new GenericResponse<AuthResponse>(401, "Unauthorized", new AuthResponse());
+                    case (int)Enums.LoginProvider.FACEBOOK:
+                        await _userService.Create(new UserRequest() { FullName = auth.FullName, Mail = auth.Mail, Password = "" });
+                        break;
+                    case (int)Enums.LoginProvider.GOOGLE:
+                        await _userService.Create(new UserRequest() { FullName = auth.FullName, Mail = auth.Mail, Password = "" });
+                        break;
+                }
+
+                user = await _userService.GetByMail(auth.Mail);
             }
-            else
+            else if (auth.Provider == (int)Enums.LoginProvider.OWN && user.Password != auth.Password)
             {
-                return new GenericResponse<AuthResponse>(401, "Unauthorized", authentication);
+                return new GenericResponse<AuthResponse>(401, "Unauthorized", new AuthResponse());
             }
+
+            authentication = GenerateCredentials(user.Mail);
+
             await SaveRefreshToken(user.Id, authentication.Token, authentication.TokenRefresh);
             return new GenericResponse<AuthResponse>(authentication);
         }
 
+        private AuthResponse GenerateCredentials(string mail) 
+        {
+            AuthResponse authentication = new();
 
-        private string GenerateToken(string username)
+            authentication.Mail = mail;
+            authentication.Token = GenerateToken(authentication.Mail);
+            authentication.TokenRefresh = GenerateRefreshToken();
+            authentication.ExpiredDate = DateTime.UtcNow.AddMinutes(_jwtSettings.Expire);
+
+            return authentication;
+        }
+
+        private string GenerateToken(string mail)
         {
             var key = Encoding.ASCII.GetBytes(_jwtSettings.Key);
             var tokenHandler = new JwtSecurityTokenHandler();
             var token = tokenHandler.CreateToken(new SecurityTokenDescriptor
             {
-                Subject = new ClaimsIdentity(new Claim[] { new Claim("Username", username) }),
+                Subject = new ClaimsIdentity(new Claim[] { new Claim("Mail", mail) }),
                 Expires = DateTime.UtcNow.AddMinutes(_jwtSettings.Expire),
                 SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
             });

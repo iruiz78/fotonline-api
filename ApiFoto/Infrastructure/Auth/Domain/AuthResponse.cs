@@ -5,6 +5,6 @@
         public string Token { get; set; }
         public string TokenRefresh { get; set; }
         public DateTime ExpiredDate { get; set; }
-        public string UserName { get; set; }
+        public string Mail { get; set; }
     }
 }
