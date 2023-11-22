@@ -44,20 +44,14 @@ builder.Services.AddSwaggerGen(c =>
         });
 });
 
-var key = Encoding.ASCII.GetBytes(builder.Configuration["JwtSettings:Key"]);
-builder.Services.AddAuthentication(config =>
-{
-    config.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    config.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-
-}).AddJwtBearer(config =>
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(config =>
 {
     config.RequireHttpsMetadata = true;
     config.SaveToken = true;
     config.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuerSigningKey = true,
-        IssuerSigningKey = new SymmetricSecurityKey(key),
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["JwtSettings:Key"])),
         ValidateIssuer = false,
         ValidateAudience = false,
         ValidateLifetime = true,
@@ -70,15 +64,9 @@ builder.Services.AddSingleton<DapperContext>();
 
 builder.Services.AddCors(x => x.AddPolicy("CorsPolicy", builder => builder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
 
-// Config app settings
-builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JwtSettings"));
-
-
 //Initialize services
-builder.Services.InitializeInjections();
+builder.Services.InitializeInjections(builder.Configuration);
 builder.Services.InitializeMapper();
-
-
 
 var app = builder.Build();
 

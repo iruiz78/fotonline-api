@@ -2,12 +2,14 @@
 using ApiFoto.Infrastructure.Dapper;
 using ApiFoto.Repository.Generic;
 using Dapper;
+using Loggin;
+using Microsoft.Extensions.Options;
 
 namespace ApiFoto.Repository.Authentication
 {
     public class AuthRepository : GenericRepository<Auth>
     {
-        public AuthRepository(DapperContext context) : base(context)
+        public AuthRepository(DapperContext context, IOptions<Log> log) : base(context, log)
         {
             
         }
