@@ -1,8 +1,10 @@
+using ApiFoto.Domain;
 using ApiFoto.Infrastructure.Auth.Domain;
 using ApiFoto.Infrastructure.Dapper;
 using ApiFoto.Infrastructure.IoC;
 using ApiFoto.Infrastructure.Mapper;
 using ApiFoto.Infrastructure.Middlewares;
+using ApiGestarFacturacion.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -55,7 +57,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJw
         ValidateIssuer = false,
         ValidateAudience = false,
         ValidateLifetime = true,
-        ClockSkew = TimeSpan.Zero
+        //ClockSkew = TimeSpan.Zero,
     };
 });
 
@@ -63,6 +65,10 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJw
 builder.Services.AddSingleton<DapperContext>();
 
 builder.Services.AddCors(x => x.AddPolicy("CorsPolicy", builder => builder.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader()));
+
+// Config app settings
+builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JwtSettings"));
+builder.Services.Configure<MailSettings>(builder.Configuration.GetSection("MailSettings"));
 
 //Initialize services
 builder.Services.InitializeInjections(builder.Configuration);
@@ -74,6 +80,7 @@ app.UseCors("CorsPolicy");
 app.UseSwagger();
 app.UseSwaggerUI();
 app.UseMiddleware<ExceptionMiddleware>();
+app.UseMiddleware<JwtMiddleware>();
 
 app.UseHttpsRedirection();
 app.UseAuthentication();

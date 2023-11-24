@@ -8,5 +8,10 @@
             GOOGLE = 2,
             FACEBOOK = 3
         }
+
+        public enum EmailType
+        {
+            ResetPassword = 1,
+        }
     }
 }

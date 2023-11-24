@@ -1,4 +1,5 @@
 ﻿using ApiFoto.Domain.User;
+using ApiFoto.Helpers;
 using ApiFoto.Infrastructure.Auth.Domain;
 using ApiFoto.Infrastructure.Extensions;
 using ApiFoto.Infrastructure.ULogged;
@@ -23,6 +24,7 @@ namespace ApiFoto.Infrastructure.IoC
             services.AddTransient<IUserLogged, UserLogged>();
             services.AddAppSettingsExtensions(configuration);
             services.AddLogginExtensions(configuration);
+            services.AddTransient<MailService>();
         }
 
     }

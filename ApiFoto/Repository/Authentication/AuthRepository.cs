@@ -14,6 +14,55 @@ namespace ApiFoto.Repository.Authentication
             
         }
 
+        public async Task SaveRecoveryCode(RecoveryCode recoveryCode)
+        {
+            recoveryCode.CreatedDate = DateTime.Now;
+            recoveryCode.UserCreatedId = 9;
+            recoveryCode.ModifiedDate = DateTime.Now;
+            recoveryCode.UserModifiedId = 9;
+
+            using var conn = _context.CreateConnectionSQL();
+
+            try
+            {
+                await conn.ExecuteAsync(GenerateInsertQuery("RecoveryCode", typeof(RecoveryCode).GetProperties()), recoveryCode);
+            }
+            catch (Exception)
+            {
+                throw;
+            }
+        }
+
+        public async Task<IEnumerable<RecoveryCode>> GetRecoveryCodeByMail(string mail)
+        {
+            using var conn = _context.CreateConnectionSQL();
+
+            try
+            {
+                return await conn.QueryAsync<RecoveryCode>("SELECT TOP 5 * FROM RecoveryCode " +
+                                                           "WHERE Mail = @Mail " +
+                                                           "ORDER BY CreatedDate DESC", new { Mail = mail }); 
+            }
+            catch (Exception)
+            {
+                throw;
+            }
+        }
+
+        public async Task ResetPassword(int id, string password)
+        {
+            using var conn = _context.CreateConnectionSQL();
+
+            try
+            {
+                await conn.QueryAsync("UPDATE Users SET Password = @Password WHERE Id = @Id", new { Id = id, Password = password });
+            }
+            catch (Exception)
+            {
+                throw;
+            }
+        }
+
         public async Task SaveRefreshToken(RefreshToken token)
         {
             token.CreatedDate = DateTime.Now;
