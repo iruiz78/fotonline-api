@@ -1,4 +1,5 @@
 ﻿using ApiFoto.Domain.User;
+using ApiFoto.Helpers;
 using ApiFoto.Infrastructure.Auth.Domain;
 using ApiFoto.Repository.Authentication;
 using ApiFoto.Repository.Generic;
@@ -20,7 +21,7 @@ namespace ApiFoto.Infrastructure.IoC
             services.AddTransient<IHttpContextAccessor, HttpContextAccessor>();
             services.AddTransient<IGenericRepository<User>, UserRepository>();
 
-
+            services.AddTransient<MailService>();
         }
 
     }

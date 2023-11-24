@@ -1,8 +1,10 @@
+using ApiFoto.Domain;
 using ApiFoto.Infrastructure.Auth.Domain;
 using ApiFoto.Infrastructure.Dapper;
 using ApiFoto.Infrastructure.IoC;
 using ApiFoto.Infrastructure.Mapper;
 using ApiFoto.Infrastructure.Middlewares;
+using ApiGestarFacturacion.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -61,7 +63,7 @@ builder.Services.AddAuthentication(config =>
         ValidateIssuer = false,
         ValidateAudience = false,
         ValidateLifetime = true,
-        ClockSkew = TimeSpan.Zero
+        //ClockSkew = TimeSpan.Zero,
     };
 });
 
@@ -72,13 +74,11 @@ builder.Services.AddCors(x => x.AddPolicy("CorsPolicy", builder => builder.Allow
 
 // Config app settings
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JwtSettings"));
-
+builder.Services.Configure<MailSettings>(builder.Configuration.GetSection("MailSettings"));
 
 //Initialize services
 builder.Services.InitializeInjections();
 builder.Services.InitializeMapper();
-
-
 
 var app = builder.Build();
 
@@ -86,6 +86,7 @@ app.UseCors("CorsPolicy");
 app.UseSwagger();
 app.UseSwaggerUI();
 app.UseMiddleware<ExceptionMiddleware>();
+app.UseMiddleware<JwtMiddleware>();
 
 app.UseHttpsRedirection();
 app.UseAuthentication();

@@ -1,7 +1,9 @@
 ﻿using ApiFoto.Domain;
 using ApiFoto.Domain.User;
+using ApiFoto.Helpers;
 using ApiFoto.Infrastructure.Auth.Domain;
 using ApiFoto.Infrastructure.Communication;
+using ApiFoto.Infrastructure.Communication.Exceptions;
 using ApiFoto.Repository.Authentication;
 using ApiFoto.Repository.Generic;
 using ApiFoto.Services.Users;
@@ -19,11 +21,14 @@ namespace ApiFoto.Services.Authentication
         private readonly IUserService _userService;
         private readonly JwtSettings _jwtSettings;
         private readonly AuthRepository _repository;
-        public AuthService(IUserService userService, IOptions<JwtSettings> jwtSettings, IGenericRepository<Auth> repository)
+        private readonly MailService _mailService;
+
+        public AuthService(IUserService userService, IOptions<JwtSettings> jwtSettings, IGenericRepository<Auth> repository, MailService mailService)
         {
             _userService = userService;
             _jwtSettings = jwtSettings.Value;
             _repository = (AuthRepository)repository;
+            _mailService = mailService;
         }
 
         public async Task<GenericResponse<AuthResponse>> GetRefreshToken(RefreshTokenRequest token)
@@ -82,7 +87,67 @@ namespace ApiFoto.Services.Authentication
             return new GenericResponse<AuthResponse>(authentication);
         }
 
-        private AuthResponse GenerateCredentials(string mail) 
+        public async Task SendCodeResetPassword(SendCodeRequest sendCodeRequest)
+        {
+            var user = await _userService.GetByMail(sendCodeRequest.Mail);
+
+            if (user is null)
+                throw new AppException("El correo ingresado no pertenece a un usuario existente.");
+
+            var code = await RecoveryCode(user);
+            await _mailService.SendEmail((int)Enums.EmailType.ResetPassword, "elias.molla.cel@gmail.com", "", code);
+        }
+
+        public async Task ValidateCodeResetPassword(ValidateCodeRequest validateCodeRequest)
+        {
+            var recoveryCodeDB = await _repository.GetRecoveryCodeByMail(validateCodeRequest.Mail);
+
+            if (recoveryCodeDB.First() is null || recoveryCodeDB.First().DateExpiration < DateTime.Now)
+                throw new AppException("El tiempo para ingresar su código de recuperación ha expirado. Vuelva a intentar.");
+
+            if (recoveryCodeDB.First().Code != validateCodeRequest.Code)
+                throw new AppException("El código de recuperación ingresado es incorrecto. Vuelva a intentar.");
+        }
+
+        public async Task ResetPassword(ResetPasswordRequest resetPasswordRequest)
+        {
+            var user = await _userService.GetByMail(resetPasswordRequest.Mail);
+
+            if (user is null)
+                throw new AppException("Ha ocurrido un error.");
+
+            await _repository.ResetPassword(user.Id, resetPasswordRequest.Password);
+        }
+
+        #region PrivateMethods
+        private async Task<string> RecoveryCode(UserResponse user)
+        {
+            var recoveryCodeDB = await _repository.GetRecoveryCodeByMail(user.Mail);
+
+            DateTime currentDate = DateTime.Now;
+
+            // Verificar si los últimos 5 códigos están dentro del rango de 10 minutos
+            bool createdInTheLast10Min = recoveryCodeDB.All(code => (currentDate - code.CreatedDate).TotalMinutes <= 10);
+
+            if (recoveryCodeDB.Count() >= 5 && createdInTheLast10Min)
+                throw new AppException("Demasiados intentos de restablecer la contraseña. Tendrás que esperar para poder intentarlo de nuevo. Hacemos esto cuando detectamos actividad sospechosa.");
+
+            Random random = new();
+            var randomNumber = random.Next(100000, 1000000).ToString();
+
+            var recoveryCode = new RecoveryCode()
+            {
+                Mail = user.Mail,
+                Code = randomNumber,
+                DateExpiration = DateTime.Now.AddMinutes(30)
+            };
+
+            await _repository.SaveRecoveryCode(recoveryCode);
+
+            return randomNumber;
+        }
+
+        private AuthResponse GenerateCredentials(string mail)
         {
             AuthResponse authentication = new();
 
@@ -132,5 +197,7 @@ namespace ApiFoto.Services.Authentication
 
             await _repository.SaveRefreshToken(refresh);
         }
+
+        #endregion
     }
 }
