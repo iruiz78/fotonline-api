@@ -1,6 +1,8 @@
 ﻿using ApiFoto.Domain;
 using ApiFoto.Infrastructure.Dapper;
 using Dapper;
+using Loggin;
+using Microsoft.Extensions.Options;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Reflection;
@@ -14,11 +16,13 @@ namespace ApiFoto.Repository.Generic
     {
         public readonly DapperContext _context;
         public readonly string _tableName;
+        public readonly Log _log;
 
-        public GenericRepository(DapperContext context)
+        public GenericRepository(DapperContext context, IOptions<Log> log)
         {
             _context = context;
-            _tableName = GetTableName();
+            _tableName = GenericRepository<T>.GetTableName();
+            _log = log.Value;
         }
 
         public async Task<T> Get(int id)
@@ -91,17 +95,12 @@ namespace ApiFoto.Repository.Generic
             }
         }
 
-        #region Private Methods
-
-        private string GetTableName()
-            => typeof(T).GetCustomAttribute<TableAttribute>().Name;
-
         public string GenerateUpdateQuery([Optional] string tableName, [Optional] IEnumerable<PropertyInfo> listOfProperties)
         {
             tableName = tableName == null ? _tableName : tableName;
 
             var updateQuery = new StringBuilder($"UPDATE {tableName} SET ");
-            var properties = GenerateListOfProperties(listOfProperties != null ? listOfProperties : GetProperties);
+            var properties = GenerateListOfProperties(listOfProperties != null ? listOfProperties : GenericRepository<T>.GetProperties);
 
             properties.Remove("CreatedDate");
             properties.Remove("UserCreatedId");
@@ -127,7 +126,7 @@ namespace ApiFoto.Repository.Generic
 
             insertQuery.Append("(");
 
-            var properties = GenerateListOfProperties(listOfProperties != null ? listOfProperties : GetProperties);
+            var properties = GenerateListOfProperties(listOfProperties != null ? listOfProperties : GenericRepository<T>.GetProperties);
 
             properties.Remove("Id");
 
@@ -145,7 +144,12 @@ namespace ApiFoto.Repository.Generic
             return insertQuery.ToString();
         }
 
-        private IEnumerable<PropertyInfo> GetProperties
+        #region Private Methods
+
+        private static string GetTableName()
+            => typeof(T).GetCustomAttribute<TableAttribute>().Name;
+
+        private static IEnumerable<PropertyInfo> GetProperties
             => typeof(T).GetProperties();
 
         private static List<string> GenerateListOfProperties(IEnumerable<PropertyInfo> listOfProperties)

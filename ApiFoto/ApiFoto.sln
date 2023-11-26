@@ -3,7 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.6.33717.318
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ApiFoto", "ApiFoto.csproj", "{C69800D0-DA94-46C3-A72B-43FB34135D06}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ApiFoto", "ApiFoto.csproj", "{C69800D0-DA94-46C3-A72B-43FB34135D06}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Loggin", "..\Loggin\Loggin.csproj", "{8BA0AEAE-3238-4FAB-96D4-0102584E9923}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,6 +17,10 @@ Global
 		{C69800D0-DA94-46C3-A72B-43FB34135D06}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C69800D0-DA94-46C3-A72B-43FB34135D06}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C69800D0-DA94-46C3-A72B-43FB34135D06}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8BA0AEAE-3238-4FAB-96D4-0102584E9923}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8BA0AEAE-3238-4FAB-96D4-0102584E9923}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8BA0AEAE-3238-4FAB-96D4-0102584E9923}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8BA0AEAE-3238-4FAB-96D4-0102584E9923}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

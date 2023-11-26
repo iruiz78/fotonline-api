@@ -1,7 +1,10 @@
 ﻿using ApiFoto.Domain;
 using ApiFoto.Domain.User;
+using ApiFoto.Helpers;
 using ApiFoto.Infrastructure.Auth.Domain;
 using ApiFoto.Infrastructure.Communication;
+using ApiFoto.Infrastructure.ULogged;
+using ApiFoto.Infrastructure.Communication.Exceptions;
 using ApiFoto.Repository.Authentication;
 using ApiFoto.Repository.Generic;
 using ApiFoto.Services.Users;
@@ -19,11 +22,16 @@ namespace ApiFoto.Services.Authentication
         private readonly IUserService _userService;
         private readonly JwtSettings _jwtSettings;
         private readonly AuthRepository _repository;
-        public AuthService(IUserService userService, IOptions<JwtSettings> jwtSettings, IGenericRepository<Auth> repository)
+        private readonly IUserLogged _userLogged;
+        private readonly MailService _mailService;
+
+        public AuthService(IUserService userService, IOptions<JwtSettings> jwtSettings, IGenericRepository<Auth> repository, MailService mailService, IUserLogged userLogged)
         {
             _userService = userService;
             _jwtSettings = jwtSettings.Value;
             _repository = (AuthRepository)repository;
+            _userLogged = userLogged;
+            _mailService = mailService;
         }
 
         public async Task<GenericResponse<AuthResponse>> GetRefreshToken(RefreshTokenRequest token)
@@ -31,80 +39,154 @@ namespace ApiFoto.Services.Authentication
             var tokenHandler = new JwtSecurityTokenHandler();
             var tokenExpired = tokenHandler.ReadJwtToken(token.TokenExpired);
 
-            if (tokenExpired.ValidTo > DateTime.UtcNow)
+            if (tokenExpired.ValidTo.ToLocalTime() > DateTime.Now)
                 return new GenericResponse<AuthResponse>(400, "Token no expirado", new AuthResponse());
 
-            string mail = tokenExpired.Claims.First(x => x.Type == "Mail").Value;
+            //string mail = tokenExpired.Claims.First(x => x.Type == "Email").Value;
+            //var user = await _userService.GetByMail(_userLogged.User.Email); // Aca se podria sacar del usuario logueado jeje
 
-            var refreshTokenFound = await _repository.GetRefreshTokenByUserId(token.UserId, token.TokenExpired, token.TokenRefresh);
-            if (refreshTokenFound == null) return new GenericResponse<AuthResponse>(400, "No existe refresh token", new AuthResponse());
+            var email = tokenExpired.Claims.First().Value; // primer valor email
+            var user = await _userService.GetByMail(email); 
+
+            // Aca sino lo encuentra o algo tiene q escalar alguna excepcion 401
+            var refreshTokenFound = await _repository.GetRefreshTokenByUserId(user.Entity.Id, token.TokenExpired, token.TokenRefresh);
+            if (refreshTokenFound == null) throw new AppException("No existe refresh token", 404);
 
             AuthResponse authentication = new()
             {
-                Token = GenerateToken(mail),
+                Token = GenerateToken(user.Entity),
                 TokenRefresh = GenerateRefreshToken(),
-                ExpiredDate = DateTime.UtcNow.AddMinutes(_jwtSettings.Expire),
+                ExpiredDate = DateTime.Now.AddMinutes(_jwtSettings.Expire),
+                Email = email
             };
-            await SaveRefreshToken(token.UserId, authentication.Token, authentication.TokenRefresh);
+            await SaveRefreshToken(user.Entity.Id, authentication.Token, authentication.TokenRefresh);
             return new GenericResponse<AuthResponse>(authentication);
-
         }
 
         public async Task<GenericResponse<AuthResponse>> Login(AuthRequest auth)
         {
             AuthResponse authentication;
-            var user = await _userService.GetByMail(auth.Mail);
+            var user = await _userService.GetByMail(auth.Email);
 
-            if (user is null) 
+            if (user.Entity is null) 
             {
                 switch (auth.Provider)
                 {
                     case (int)Enums.LoginProvider.OWN:
                         return new GenericResponse<AuthResponse>(401, "Unauthorized", new AuthResponse());
                     case (int)Enums.LoginProvider.FACEBOOK:
-                        await _userService.Create(new UserRequest() { FullName = auth.FullName, Mail = auth.Mail, Password = "" });
+                        await _userService.Save(new UserRequest() { FullName = auth.FullName, Email = auth.Email, Password = "" });
                         break;
                     case (int)Enums.LoginProvider.GOOGLE:
-                        await _userService.Create(new UserRequest() { FullName = auth.FullName, Mail = auth.Mail, Password = "" });
+                        await _userService.Save(new UserRequest() { FullName = auth.FullName, Email = auth.Email, Password = "" });
                         break;
                 }
 
-                user = await _userService.GetByMail(auth.Mail);
+                user = await _userService.GetByMail(auth.Email);
             }
-            else if (auth.Provider == (int)Enums.LoginProvider.OWN && user.Password != auth.Password)
+            else if (auth.Provider == (int)Enums.LoginProvider.OWN && user.Entity.Password != auth.Password)
             {
                 return new GenericResponse<AuthResponse>(401, "Unauthorized", new AuthResponse());
             }
 
-            authentication = GenerateCredentials(user.Mail);
+            authentication = GenerateCredentials(user.Entity);
 
-            await SaveRefreshToken(user.Id, authentication.Token, authentication.TokenRefresh);
+            await SaveRefreshToken(user.Entity.Id, authentication.Token, authentication.TokenRefresh);
             return new GenericResponse<AuthResponse>(authentication);
         }
 
-        private AuthResponse GenerateCredentials(string mail) 
+        private AuthResponse GenerateCredentials(UserResponse user) 
         {
             AuthResponse authentication = new();
 
-            authentication.Mail = mail;
-            authentication.Token = GenerateToken(authentication.Mail);
+            authentication.Email = user.Email;
+            authentication.Token = GenerateToken(user);
             authentication.TokenRefresh = GenerateRefreshToken();
-            authentication.ExpiredDate = DateTime.UtcNow.AddMinutes(_jwtSettings.Expire);
+            authentication.ExpiredDate = DateTime.Now.AddMinutes(_jwtSettings.Expire);
 
             return authentication;
         }
-
-        private string GenerateToken(string mail)
+        
+        public async Task SendCodeResetPassword(SendCodeRequest sendCodeRequest)
         {
-            var key = Encoding.ASCII.GetBytes(_jwtSettings.Key);
-            var tokenHandler = new JwtSecurityTokenHandler();
-            var token = tokenHandler.CreateToken(new SecurityTokenDescriptor
+            var user = await _userService.GetByMail(sendCodeRequest.Email);
+
+            if (user.Entity is null)
+                throw new AppException("El correo ingresado no pertenece a un usuario existente.");
+
+            var code = await RecoveryCode(user.Entity);
+            await _mailService.SendEmail((int)Enums.EmailType.ResetPassword, "elias.molla.cel@gmail.com", "", code);
+        }
+
+        public async Task ValidateCodeResetPassword(ValidateCodeRequest validateCodeRequest)
+        {
+            var recoveryCodeDB = await _repository.GetRecoveryCodeByMail(validateCodeRequest.Email);
+
+            if (recoveryCodeDB.First() is null || recoveryCodeDB.First().DateExpiration < DateTime.Now)
+                throw new AppException("El tiempo para ingresar su código de recuperación ha expirado. Vuelva a intentar.");
+
+            if (recoveryCodeDB.First().Code != validateCodeRequest.Code)
+                throw new AppException("El código de recuperación ingresado es incorrecto. Vuelva a intentar.");
+        }
+
+        public async Task ResetPassword(ResetPasswordRequest resetPasswordRequest)
+        {
+            var user = await _userService.GetByMail(resetPasswordRequest.Email);
+
+            if (user is null)
+                throw new AppException("Ha ocurrido un error.");
+
+            await _repository.ResetPassword(user.Entity.Id, resetPasswordRequest.Password);
+        }
+
+        #region PrivateMethods
+        private async Task<string> RecoveryCode(UserResponse user)
+        {
+            var recoveryCodeDB = await _repository.GetRecoveryCodeByMail(user.Email);
+
+            DateTime currentDate = DateTime.Now;
+
+            // Verificar si los últimos 5 códigos están dentro del rango de 10 minutos
+            bool createdInTheLast10Min = recoveryCodeDB.All(code => (currentDate - code.CreatedDate).TotalMinutes <= 10);
+
+            if (recoveryCodeDB.Count() >= 5 && createdInTheLast10Min)
+                throw new AppException("Demasiados intentos de restablecer la contraseña. Tendrás que esperar para poder intentarlo de nuevo. Hacemos esto cuando detectamos actividad sospechosa.");
+
+            Random random = new();
+            var randomNumber = random.Next(100000, 1000000).ToString();
+
+            var recoveryCode = new RecoveryCode()
             {
-                Subject = new ClaimsIdentity(new Claim[] { new Claim("Mail", mail) }),
-                Expires = DateTime.UtcNow.AddMinutes(_jwtSettings.Expire),
-                SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
-            });
-            return tokenHandler.WriteToken(token);
+                Email = user.Email,
+                Code = randomNumber,
+                DateExpiration = DateTime.Now.AddMinutes(30)
+            };
+
+            await _repository.SaveRecoveryCode(recoveryCode);
+
+            return randomNumber;
+        }
+
+        private string GenerateToken(UserResponse user)
+        {
+            var claims = new[]
+            {
+                new Claim(ClaimTypes.Email, user.Email),
+                new Claim(ClaimTypes.Role, user.RolId.ToString()),
+                new Claim(ClaimTypes.Name, user.FullName),
+            };
+
+            var time = DateTime.Now.AddMinutes(_jwtSettings.Expire);
+
+            var token = new JwtSecurityToken(
+                _jwtSettings.Issuer,
+                _jwtSettings.Audience,
+                claims,
+                expires: time,
+                signingCredentials: new SigningCredentials(new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.Key)), SecurityAlgorithms.HmacSha256)
+            );
+
+            return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
         private string GenerateRefreshToken()
@@ -127,10 +209,12 @@ namespace ApiFoto.Services.Authentication
                 UserId = userId,
                 Token = token,
                 TokenRefresh = refreshToken,
-                ExpiratedDate = DateTime.UtcNow.AddMinutes(_jwtSettings.ExpireRefresh) // Ver esto como queda cuando validamos si esta expirado o no
+                ExpiratedDate = DateTime.Now.AddMinutes(_jwtSettings.Expire) // Ver esto como queda cuando validamos si esta expirado o no
             };
 
             await _repository.SaveRefreshToken(refresh);
         }
+
+        #endregion
     }
 }

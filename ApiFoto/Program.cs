@@ -1,8 +1,10 @@
+using ApiFoto.Domain;
 using ApiFoto.Infrastructure.Auth.Domain;
 using ApiFoto.Infrastructure.Dapper;
 using ApiFoto.Infrastructure.IoC;
 using ApiFoto.Infrastructure.Mapper;
 using ApiFoto.Infrastructure.Middlewares;
+using ApiGestarFacturacion.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -44,20 +46,14 @@ builder.Services.AddSwaggerGen(c =>
         });
 });
 
-var key = Encoding.ASCII.GetBytes(builder.Configuration["JwtSettings:Key"]);
-builder.Services.AddAuthentication(config =>
-{
-    config.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    config.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-
-}).AddJwtBearer(config =>
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(config =>
 {
     config.RequireHttpsMetadata = true;
     config.SaveToken = true;
     config.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuerSigningKey = true,
-        IssuerSigningKey = new SymmetricSecurityKey(key),
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["JwtSettings:Key"])),
         ValidateIssuer = false,
         ValidateAudience = false,
         ValidateLifetime = true,
@@ -72,13 +68,11 @@ builder.Services.AddCors(x => x.AddPolicy("CorsPolicy", builder => builder.Allow
 
 // Config app settings
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JwtSettings"));
-
+builder.Services.Configure<MailSettings>(builder.Configuration.GetSection("MailSettings"));
 
 //Initialize services
-builder.Services.InitializeInjections();
+builder.Services.InitializeInjections(builder.Configuration);
 builder.Services.InitializeMapper();
-
-
 
 var app = builder.Build();
 
@@ -86,6 +80,7 @@ app.UseCors("CorsPolicy");
 app.UseSwagger();
 app.UseSwaggerUI();
 app.UseMiddleware<ExceptionMiddleware>();
+app.UseMiddleware<JwtMiddleware>();
 
 app.UseHttpsRedirection();
 app.UseAuthentication();
