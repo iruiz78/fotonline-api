@@ -1,5 +1,6 @@
 ﻿using ApiFoto.Infrastructure.Auth.Domain;
 using ApiFoto.Infrastructure.Communication;
+using ApiFoto.Infrastructure.Communication.Exceptions;
 using ApiFoto.Services.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -20,7 +21,7 @@ namespace ApiFoto.Controllers
         [HttpPost("TestConnectionApi")]
         public async Task TestConnectionApi() 
         {
-            Task.Delay(1000).Wait();
+            throw new AppException("Test");
         }
 
         [HttpPost("Login")]

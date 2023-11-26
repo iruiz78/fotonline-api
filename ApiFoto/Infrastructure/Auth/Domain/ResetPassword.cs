@@ -2,17 +2,17 @@
 {
     public class SendCodeRequest
     {
-        public string Mail { get; set; }
+        public string Email { get; set; }
     }
     public class ValidateCodeRequest
     {
-        public string Mail { get; set; }
+        public string Email { get; set; }
         public string Code { get; set; }
     }
 
     public class ResetPasswordRequest
     {
-        public string Mail { get; set; }
+        public string Email { get; set; }
         public string Password { get; set; }
     }
 }

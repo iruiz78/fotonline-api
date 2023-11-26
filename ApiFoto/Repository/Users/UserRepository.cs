@@ -58,7 +58,7 @@ namespace ApiFoto.Repository.Users
         {
             using (var conn = _context.CreateConnectionSQL())
             {
-                UserResponse user = await conn.QueryFirstOrDefaultAsync<UserResponse>("SELECT * FROM Users WHERE Email = @Email AND Active = 1", new { Email = email });
+                var user = await conn.QueryFirstOrDefaultAsync<UserResponse>("SELECT * FROM Users WHERE Email = @Email AND Active = 1", new { Email = email });
                 if (user is null) return null;
                 user.Modules = await GetUsersModulesByUserId(user.Id, conn);
                 return user;

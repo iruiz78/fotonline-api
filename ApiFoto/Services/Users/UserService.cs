@@ -48,8 +48,8 @@ namespace ApiFoto.Services.Users
             //Thread.Sleep(5000);
         }
 
-        public async Task<GenericResponse<UserResponse>> GetByMail(string mail)
-            => new GenericResponse<UserResponse>(await _repository.GetByEmail(mail));
+        public async Task<GenericResponse<UserResponse>> GetByMail(string email)
+            => new GenericResponse<UserResponse>(await _repository.GetByEmail(email));
 
         public async Task<GenericResponse<UserResponse>> Save(UserRequest userRequest)
         {

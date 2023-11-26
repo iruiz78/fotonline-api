@@ -39,25 +39,28 @@ namespace ApiFoto.Services.Authentication
             var tokenHandler = new JwtSecurityTokenHandler();
             var tokenExpired = tokenHandler.ReadJwtToken(token.TokenExpired);
 
-            if (tokenExpired.ValidTo > DateTime.UtcNow)
+            if (tokenExpired.ValidTo.ToLocalTime() > DateTime.Now)
                 return new GenericResponse<AuthResponse>(400, "Token no expirado", new AuthResponse());
 
-            string mail = tokenExpired.Claims.First(x => x.Type == "Email").Value;
-            var user = await _userService.GetByMail(_userLogged.User.Email); // Aca se podria sacar del usuario logueado jeje
-            // Aca sino lo encuentra o algo tiene q escalar alguna excepcion 401
+            //string mail = tokenExpired.Claims.First(x => x.Type == "Email").Value;
+            //var user = await _userService.GetByMail(_userLogged.User.Email); // Aca se podria sacar del usuario logueado jeje
 
-            var refreshTokenFound = await _repository.GetRefreshTokenByUserId(token.UserId, token.TokenExpired, token.TokenRefresh);
-            if (refreshTokenFound == null) return new GenericResponse<AuthResponse>(400, "No existe refresh token", new AuthResponse());
+            var email = tokenExpired.Claims.First().Value; // primer valor email
+            var user = await _userService.GetByMail(email); 
+
+            // Aca sino lo encuentra o algo tiene q escalar alguna excepcion 401
+            var refreshTokenFound = await _repository.GetRefreshTokenByUserId(user.Entity.Id, token.TokenExpired, token.TokenRefresh);
+            if (refreshTokenFound == null) throw new AppException("No existe refresh token", 404);
 
             AuthResponse authentication = new()
             {
                 Token = GenerateToken(user.Entity),
                 TokenRefresh = GenerateRefreshToken(),
-                ExpiredDate = DateTime.UtcNow.AddMinutes(_jwtSettings.Expire),
+                ExpiredDate = DateTime.Now.AddMinutes(_jwtSettings.Expire),
+                Email = email
             };
-            await SaveRefreshToken(token.UserId, authentication.Token, authentication.TokenRefresh);
+            await SaveRefreshToken(user.Entity.Id, authentication.Token, authentication.TokenRefresh);
             return new GenericResponse<AuthResponse>(authentication);
-
         }
 
         public async Task<GenericResponse<AuthResponse>> Login(AuthRequest auth)
@@ -65,7 +68,7 @@ namespace ApiFoto.Services.Authentication
             AuthResponse authentication;
             var user = await _userService.GetByMail(auth.Email);
 
-            if (user is null) 
+            if (user.Entity is null) 
             {
                 switch (auth.Provider)
                 {
@@ -96,28 +99,28 @@ namespace ApiFoto.Services.Authentication
         {
             AuthResponse authentication = new();
 
-            authentication.Mail = user.Email;
+            authentication.Email = user.Email;
             authentication.Token = GenerateToken(user);
             authentication.TokenRefresh = GenerateRefreshToken();
-            authentication.ExpiredDate = DateTime.UtcNow.AddMinutes(_jwtSettings.Expire);
+            authentication.ExpiredDate = DateTime.Now.AddMinutes(_jwtSettings.Expire);
 
             return authentication;
         }
         
         public async Task SendCodeResetPassword(SendCodeRequest sendCodeRequest)
         {
-            var user = await _userService.GetByMail(sendCodeRequest.Mail);
+            var user = await _userService.GetByMail(sendCodeRequest.Email);
 
-            if (user is null)
+            if (user.Entity is null)
                 throw new AppException("El correo ingresado no pertenece a un usuario existente.");
 
-            var code = await RecoveryCode(user);
+            var code = await RecoveryCode(user.Entity);
             await _mailService.SendEmail((int)Enums.EmailType.ResetPassword, "elias.molla.cel@gmail.com", "", code);
         }
 
         public async Task ValidateCodeResetPassword(ValidateCodeRequest validateCodeRequest)
         {
-            var recoveryCodeDB = await _repository.GetRecoveryCodeByMail(validateCodeRequest.Mail);
+            var recoveryCodeDB = await _repository.GetRecoveryCodeByMail(validateCodeRequest.Email);
 
             if (recoveryCodeDB.First() is null || recoveryCodeDB.First().DateExpiration < DateTime.Now)
                 throw new AppException("El tiempo para ingresar su código de recuperación ha expirado. Vuelva a intentar.");
@@ -128,18 +131,18 @@ namespace ApiFoto.Services.Authentication
 
         public async Task ResetPassword(ResetPasswordRequest resetPasswordRequest)
         {
-            var user = await _userService.GetByMail(resetPasswordRequest.Mail);
+            var user = await _userService.GetByMail(resetPasswordRequest.Email);
 
             if (user is null)
                 throw new AppException("Ha ocurrido un error.");
 
-            await _repository.ResetPassword(user.Id, resetPasswordRequest.Password);
+            await _repository.ResetPassword(user.Entity.Id, resetPasswordRequest.Password);
         }
 
         #region PrivateMethods
         private async Task<string> RecoveryCode(UserResponse user)
         {
-            var recoveryCodeDB = await _repository.GetRecoveryCodeByMail(user.Mail);
+            var recoveryCodeDB = await _repository.GetRecoveryCodeByMail(user.Email);
 
             DateTime currentDate = DateTime.Now;
 
@@ -154,7 +157,7 @@ namespace ApiFoto.Services.Authentication
 
             var recoveryCode = new RecoveryCode()
             {
-                Mail = user.Mail,
+                Email = user.Email,
                 Code = randomNumber,
                 DateExpiration = DateTime.Now.AddMinutes(30)
             };
@@ -173,29 +176,17 @@ namespace ApiFoto.Services.Authentication
                 new Claim(ClaimTypes.Name, user.FullName),
             };
 
+            var time = DateTime.Now.AddMinutes(_jwtSettings.Expire);
+
             var token = new JwtSecurityToken(
                 _jwtSettings.Issuer,
                 _jwtSettings.Audience,
                 claims,
-                expires: DateTime.UtcNow.AddMinutes(_jwtSettings.Expire),
+                expires: time,
                 signingCredentials: new SigningCredentials(new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.Key)), SecurityAlgorithms.HmacSha256)
             );
 
-
-
             return new JwtSecurityTokenHandler().WriteToken(token);
-
-            //var key = Encoding.ASCII.GetBytes(_jwtSettings.Key);
-            //var tokenHandler = new JwtSecurityTokenHandler();
-            //
-            //var token = tokenHandler.CreateToken(new SecurityTokenDescriptor
-            //{
-            //    Claims = claims
-            //    Subject = new ClaimsIdentity(claims),
-            //    Expires = DateTime.UtcNow.AddMinutes(_jwtSettings.Expire),
-            //    SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
-            //});
-            //return tokenHandler.WriteToken(token);
         }
 
         private string GenerateRefreshToken()
@@ -218,7 +209,7 @@ namespace ApiFoto.Services.Authentication
                 UserId = userId,
                 Token = token,
                 TokenRefresh = refreshToken,
-                ExpiratedDate = DateTime.UtcNow.AddMinutes(_jwtSettings.ExpireRefresh) // Ver esto como queda cuando validamos si esta expirado o no
+                ExpiratedDate = DateTime.Now.AddMinutes(_jwtSettings.Expire) // Ver esto como queda cuando validamos si esta expirado o no
             };
 
             await _repository.SaveRefreshToken(refresh);

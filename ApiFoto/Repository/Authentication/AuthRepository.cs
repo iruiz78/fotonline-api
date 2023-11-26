@@ -33,15 +33,15 @@ namespace ApiFoto.Repository.Authentication
             }
         }
 
-        public async Task<IEnumerable<RecoveryCode>> GetRecoveryCodeByMail(string mail)
+        public async Task<IEnumerable<RecoveryCode>> GetRecoveryCodeByMail(string email)
         {
             using var conn = _context.CreateConnectionSQL();
 
             try
             {
                 return await conn.QueryAsync<RecoveryCode>("SELECT TOP 5 * FROM RecoveryCode " +
-                                                           "WHERE Mail = @Mail " +
-                                                           "ORDER BY CreatedDate DESC", new { Mail = mail }); 
+                                                           "WHERE Email = @Email " +
+                                                           "ORDER BY CreatedDate DESC", new { Email = email }); 
             }
             catch (Exception)
             {
@@ -65,13 +65,21 @@ namespace ApiFoto.Repository.Authentication
 
         public async Task SaveRefreshToken(RefreshToken token)
         {
-            token.CreatedDate = DateTime.Now;
-            token.UserCreatedId = 9;
-            token.ModifiedDate = DateTime.Now;
-            token.UserModifiedId = 9;
-            using (var conn = _context.CreateConnectionSQL())
+            try
             {
-                await conn.ExecuteAsync(GenerateInsertQuery("RefreshTokens", typeof(RefreshToken).GetProperties()), token);
+                token.CreatedDate = DateTime.Now;
+                token.UserCreatedId = 1;
+                token.ModifiedDate = DateTime.Now;
+                token.UserModifiedId = 1;
+                using (var conn = _context.CreateConnectionSQL())
+                {
+                    await conn.ExecuteAsync(GenerateInsertQuery("RefreshTokens", typeof(RefreshToken).GetProperties()), token);
+                }
+            }
+            catch (Exception ex)
+            {
+
+                throw;
             }
         }
 

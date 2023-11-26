@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace ApiFoto.Controllers
 {
+    [Authorize]
     [Route("[controller]")]
     [ApiController]
     public class UserController : ControllerBase
@@ -17,8 +18,7 @@ namespace ApiFoto.Controllers
         {
             _service = service;
         }
-
-        //[Authorize]
+        
         [HttpGet("GetAll")]
         public async Task<GenericResponse<UserResponse>> GetAll()
             => await _service.GetAll();

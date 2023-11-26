@@ -57,7 +57,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJw
         ValidateIssuer = false,
         ValidateAudience = false,
         ValidateLifetime = true,
-        //ClockSkew = TimeSpan.Zero,
+        ClockSkew = TimeSpan.Zero
     };
 });
 
