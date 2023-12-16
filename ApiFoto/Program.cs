@@ -1,4 +1,6 @@
+using Amazon.S3;
 using ApiFoto.Domain;
+using ApiFoto.Domain.AwsS3;
 using ApiFoto.Infrastructure.Auth.Domain;
 using ApiFoto.Infrastructure.Dapper;
 using ApiFoto.Infrastructure.IoC;
@@ -69,9 +71,14 @@ builder.Services.AddCors(x => x.AddPolicy("CorsPolicy", builder => builder.Allow
 // Config app settings
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JwtSettings"));
 builder.Services.Configure<MailSettings>(builder.Configuration.GetSection("MailSettings"));
+builder.Services.Configure<AWSConfiguration>(builder.Configuration.GetSection("AwsConfiguration"));
+
 
 //Initialize services
 builder.Services.InitializeInjections(builder.Configuration);
+builder.Services.AddDefaultAWSOptions(builder.Configuration.GetAWSOptions());
+builder.Services.AddAWSService<IAmazonS3>();
+
 builder.Services.InitializeMapper();
 
 var app = builder.Build();

@@ -1,12 +1,12 @@
 ﻿using ApiFoto.Domain.User;
 using ApiFoto.Helpers;
-using ApiFoto.Infrastructure.Auth.Domain;
 using ApiFoto.Infrastructure.Extensions;
 using ApiFoto.Infrastructure.ULogged;
 using ApiFoto.Repository.Authentication;
 using ApiFoto.Repository.Generic;
 using ApiFoto.Repository.Users;
 using ApiFoto.Services.Authentication;
+using ApiFoto.Services.AwsS3;
 using ApiFoto.Services.Users;
 
 namespace ApiFoto.Infrastructure.IoC
@@ -25,6 +25,7 @@ namespace ApiFoto.Infrastructure.IoC
             services.AddAppSettingsExtensions(configuration);
             services.AddLogginExtensions(configuration);
             services.AddTransient<MailService>();
+            services.AddTransient<IAwsS3Service, AwsS3Service>();
         }
 
     }
