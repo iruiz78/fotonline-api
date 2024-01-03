@@ -2,7 +2,7 @@
 using Loggin;
 using Microsoft.Extensions.Options;
 
-namespace ApiFoto.Infrastructure.Extensions
+namespace ApiFoto.Infrastructure.Extensions.Loggin
 {
     public static class LogginExtensions
     {

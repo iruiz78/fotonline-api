@@ -1,10 +1,11 @@
-﻿using ApiFoto.Domain.Settings.Modules;
+﻿using ApiFoto.Domain.Event;
+using ApiFoto.Domain.Settings.Modules;
 using ApiFoto.Domain.User;
 using AutoMapper;
 
-namespace ApiFoto.Infrastructure.Mapper
+namespace ApiFoto.Infrastructure.Extensions.Mapper
 {
-    public static class Mapping
+    public static class Mappers
     {
         public static void InitializeMapper(this IServiceCollection services)
         {
@@ -13,6 +14,8 @@ namespace ApiFoto.Infrastructure.Mapper
                 cfg.CreateMap<UserRequest, User>().IgnoreAllSourcePropertiesWithAnInaccessibleSetter();
                 cfg.CreateMap<ModuleRequest, Module>().IgnoreAllSourcePropertiesWithAnInaccessibleSetter();
                 cfg.CreateMap<UserRequest, UserRequestUpdate>().IgnoreAllSourcePropertiesWithAnInaccessibleSetter();
+                cfg.CreateMap<EventRequest, Event>().IgnoreAllSourcePropertiesWithAnInaccessibleSetter();
+
             });
             IMapper mapper = config.CreateMapper();
             services.AddSingleton(mapper);

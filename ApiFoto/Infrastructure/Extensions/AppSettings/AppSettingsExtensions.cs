@@ -2,7 +2,7 @@
 using ApiFoto.Domain.Settings.Rols;
 using ApiFoto.Infrastructure.Auth.Domain;
 
-namespace ApiFoto.Infrastructure.Extensions
+namespace ApiFoto.Infrastructure.Extensions.AppSettings
 {
     public static class AppSettingsExtensions
     {

@@ -1,8 +1,8 @@
 using ApiFoto.Domain;
 using ApiFoto.Infrastructure.Auth.Domain;
 using ApiFoto.Infrastructure.Dapper;
-using ApiFoto.Infrastructure.IoC;
-using ApiFoto.Infrastructure.Mapper;
+using ApiFoto.Infrastructure.Extensions.DI;
+using ApiFoto.Infrastructure.Extensions.Mapper;
 using ApiFoto.Infrastructure.Middlewares;
 using ApiGestarFacturacion.Infrastructure;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
